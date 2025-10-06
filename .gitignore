@@ -1,4 +1,4 @@
 emails/
 .venv/
 .env
-
+.streamlit/
