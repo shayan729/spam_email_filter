@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spam Email Filtering System Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Neutrals & Tech Blue -->
+    <!-- Application Structure Plan: The application is designed as a single-page, top-to-bottom narrative dashboard. It starts with a high-level summary (Overview), explains the process (The Filtering Pipeline), provides detailed evidence (Performance Deep Dive), shows concrete examples (Spam Anatomy), and concludes with an interactive engagement (Live Simulator). This structure was chosen to guide the user from a general understanding to specific details and finally to hands-on application, making a complex technical topic accessible and intuitive without needing to jump between pages. -->
+    <!-- Visualization & Content Choices: 
+    - Total Emails & Spam/Ham Ratio -> Goal: Inform -> Viz: Donut Chart (Chart.js) -> Interaction: Hover for tooltips -> Justification: Excellent for showing simple part-to-whole proportions at a glance.
+    - Filtering Process -> Goal: Organize -> Viz: Interactive HTML/CSS Diagram -> Interaction: Click stage to reveal details -> Justification: Breaks a complex workflow into digestible, user-explorable steps, more engaging than a static graphic.
+    - Detection Accuracy by Type -> Goal: Compare -> Viz: Bar Chart (Chart.js) -> Interaction: Hover for tooltips -> Justification: Standard, effective method for comparing performance across multiple distinct categories.
+    - Filter Simulator -> Goal: Engage -> Viz: Text Input & Dynamic Result Panel -> Interaction: User input triggers JS analysis -> Justification: Provides a hands-on experience that reinforces learning and demonstrates the system's logic in a tangible way. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .pipeline-item {
+            transition: all 0.3s ease;
+            border-color: #e5e7eb;
+        }
+        .pipeline-item.active {
+            border-color: #3b82f6;
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+        .pipeline-arrow {
+            color: #9ca3af;
+        }
+        .result-spam {
+             background-color: #fef2f2;
+             border-color: #f87171;
+             color: #b91c1c;
+        }
+        .result-ham {
+             background-color: #f0fdf4;
+             border-color: #4ade80;
+             color: #15803d;
+        }
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800">Spam Filtering System</h1>
+            <p class="mt-4 text-lg text-gray-600">An interactive dashboard exploring our email protection performance and methodology.</p>
+        </header>
+
+        <main class="space-y-16">
+            
+            <section id="overview" class="bg-white p-6 md:p-8 rounded-xl shadow-sm">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Quarterly Overview</h2>
+                <p class="text-gray-600 mb-6">This section provides a high-level summary of the system's performance over the last quarter. It highlights the total volume of emails processed and the overall effectiveness in categorizing them correctly as legitimate (Ham) or unsolicited (Spam).</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div class="grid grid-cols-2 gap-4 text-center">
+                        <div class="bg-blue-50 p-6 rounded-lg">
+                            <h3 class="text-3xl md:text-4xl font-semibold text-blue-800" id="total-emails">10M</h3>
+                            <p class="text-blue-600 mt-2">Total Emails Processed</p>
+                        </div>
+                        <div class="bg-green-50 p-6 rounded-lg">
+                            <h3 class="text-3xl md:text-4xl font-semibold text-green-800">99.5%</h3>
+                            <p class="text-green-600 mt-2">Overall Accuracy</p>
+                        </div>
+                        <div class="bg-red-50 p-6 rounded-lg">
+                            <h3 class="text-3xl md:text-4xl font-semibold text-red-800" id="false-positives">0.02%</h3>
+                            <p class="text-red-600 mt-2">False Positives Rate</p>
+                        </div>
+                        <div class="bg-yellow-50 p-6 rounded-lg">
+                            <h3 class="text-3xl md:text-4xl font-semibold text-yellow-800" id="false-negatives">0.48%</h3>
+                            <p class="text-yellow-600 mt-2">Spam Emails Missed</p>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="chart-container">
+                            <canvas id="emailBreakdownChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="pipeline" class="bg-white p-6 md:p-8 rounded-xl shadow-sm">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">The Filtering Pipeline</h2>
+                <p class="text-gray-600 mb-8">Our system uses a multi-stage process to analyze each incoming email. Each stage looks for specific indicators of spam. Click on any stage below to learn more about how it contributes to the final classification and what percentage of total spam it typically identifies.</p>
+                <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 md:space-x-4 text-center mb-8">
+                    <div id="pipeline-1" class="pipeline-item cursor-pointer p-4 border-2 rounded-lg flex-1 w-full md:w-auto">
+                        <h3 class="font-semibold">1. Header Analysis</h3>
+                    </div>
+                    <div class="pipeline-arrow text-2xl font-light transform md:rotate-0 rotate-90">&rarr;</div>
+                    <div id="pipeline-2" class="pipeline-item cursor-pointer p-4 border-2 rounded-lg flex-1 w-full md:w-auto">
+                        <h3 class="font-semibold">2. Content Analysis</h3>
+                    </div>
+                    <div class="pipeline-arrow text-2xl font-light transform md:rotate-0 rotate-90">&rarr;</div>
+                    <div id="pipeline-3" class="pipeline-item cursor-pointer p-4 border-2 rounded-lg flex-1 w-full md:w-auto">
+                        <h3 class="font-semibold">3. Link & Attachment Scan</h3>
+                    </div>
+                     <div class="pipeline-arrow text-2xl font-light transform md:rotate-0 rotate-90">&rarr;</div>
+                    <div id="pipeline-4" class="pipeline-item cursor-pointer p-4 border-2 rounded-lg flex-1 w-full md:w-auto">
+                        <h3 class="font-semibold">4. Machine Learning Model</h3>
+                    </div>
+                </div>
+                <div id="pipeline-details" class="bg-gray-50 p-6 rounded-lg min-h-[150px] transition-all duration-300">
+                    <h3 id="pipeline-detail-title" class="text-lg font-bold text-blue-800">Select a stage</h3>
+                    <p id="pipeline-detail-text" class="mt-2 text-gray-700">Click one of the pipeline stages above to see its description.</p>
+                </div>
+            </section>
+            
+            <section id="performance" class="bg-white p-6 md:p-8 rounded-xl shadow-sm">
+                 <h2 class="text-2xl font-bold text-gray-800 mb-2">Performance Deep Dive</h2>
+                 <p class="text-gray-600 mb-6">Not all spam is created equal. This chart breaks down the detection accuracy for the most common types of spam we encounter. This helps us understand where the system excels and which threats require continuous model retraining and rule updates.</p>
+                <div class="chart-container h-96 max-h-[450px] !max-w-4xl">
+                    <canvas id="accuracyByTypeChart"></canvas>
+                </div>
+            </section>
+            
+            <section id="anatomy" class="bg-white p-6 md:p-8 rounded-xl shadow-sm">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Anatomy of a Spam Email</h2>
+                <p class="text-gray-600 mb-8">Understanding the common characteristics of spam can help both our system and users identify threats. Below are some of the most frequent red flags our filters look for when analyzing an email's content and structure.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h3 class="font-bold text-lg text-gray-800">Suspicious Sender</h3>
+                        <p class="mt-2 text-gray-600">Emails from unknown or strangely formatted addresses (e.g., `info@secure-update-x123.com`) are heavily scrutinized.</p>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h3 class="font-bold text-lg text-gray-800">Urgent or Threatening Language</h3>
+                        <p class="mt-2 text-gray-600">Phrases like "Account Suspended," "Urgent Action Required," or "You've Won!" are classic tactics to create panic and bypass rational thinking.</p>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h3 class="font-bold text-lg text-gray-800">Generic Greetings</h3>
+                        <p class="mt-2 text-gray-600">Legitimate companies usually address you by name. Greetings like "Dear Valued Customer" can be a red flag.</p>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h3 class="font-bold text-lg text-gray-800">Mismatched Links</h3>
+                        <p class="mt-2 text-gray-600">Hovering over a link might reveal a different URL than the displayed text. Our system automatically checks for this discrepancy.</p>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h3 class="font-bold text-lg text-gray-800">Unexpected Attachments</h3>
+                        <p class="mt-2 text-gray-600">Unsolicited invoices, documents, or executables (.exe, .zip) are high-risk and are scanned for malware.</p>
+                    </div>
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h3 class="font-bold text-lg text-gray-800">Spelling & Grammar Errors</h3>
+                        <p class="mt-2 text-gray-600">While not always present, poor grammar and spelling mistakes are common in less sophisticated phishing and spam emails.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="simulator" class="bg-white p-6 md:p-8 rounded-xl shadow-sm">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Live Filter Simulator</h2>
+                <p class="text-gray-600 mb-6">Curious how an email might be classified? Paste the subject and body of an email below to run it through a simplified version of our filter. The simulation checks for common spam keywords and patterns to provide a likely classification.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <label for="email-content" class="block font-medium text-gray-700 mb-2">Email Content:</label>
+                        <textarea id="email-content" rows="10" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Subject: Urgent action required!&#10;&#10;Dear user,&#10;Click this link to secure your account for free! http://bit.ly/123xyz ..."></textarea>
+                        <button id="analyze-btn" class="btn-primary mt-4 w-full md:w-auto py-2 px-6 rounded-lg font-semibold">Analyze Email</button>
+                    </div>
+                    <div class="flex flex-col">
+                         <p class="font-medium text-gray-700 mb-2">Analysis Result:</p>
+                        <div id="analysis-result" class="flex-grow p-4 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+                            <p class="text-gray-500">Awaiting analysis...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+        
+        <footer class="text-center mt-16 text-gray-500">
+            <p>&copy; 2025 Email Protection Services. All data is for demonstration purposes.</p>
+        </footer>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const emailData = {
+                total: 10000000,
+                spam: 1300000, 
+                ham: 8700000,
+            };
+
+            const accuracyData = {
+                labels: ['Phishing', 'Malware', 'Promotions', 'Scams', 'Social', 'Updates'],
+                datasets: [{
+                    label: 'Detection Accuracy',
+                    data: [99.8, 99.9, 98.5, 99.2, 97.8, 98.1],
+                    backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                }]
+            };
+
+            const pipelineContent = {
+                'pipeline-1': {
+                    title: 'Stage 1: Header Analysis (Catches ~25% of Spam)',
+                    text: 'The system first examines the email\'s headers. It checks the sender\'s reputation, verifies authentication records like SPF and DKIM, and analyzes the routing information to detect anomalies or signs of forged sender identities.'
+                },
+                'pipeline-2': {
+                    title: 'Stage 2: Content Analysis (Catches ~40% of Spam)',
+                    text: 'Next, the email\'s body and subject are scanned for common spam keywords, suspicious phrases, and formatting tricks (e.g., invisible text). Natural Language Processing (NLP) helps identify the intent and tone of the message.'
+                },
+                'pipeline-3': {
+                    title: 'Stage 3: Link & Attachment Scan (Catches ~20% of Spam)',
+                    text: 'All embedded links are checked against a database of malicious URLs. Attachments are scanned for malware, viruses, and dangerous file types before they can be opened by the user.'
+                },
+                'pipeline-4': {
+                    title: 'Stage 4: Machine Learning Model (Final Classification)',
+                    text: 'Finally, all collected data points are fed into a machine learning model. The model calculates a final spam score based on thousands of features and makes the ultimate decision: deliver to inbox, send to spam, or block entirely.'
+                }
+            };
+
+            const spamKeywords = [
+                'free', 'winner', 'congratulations', 'claim', 'prize', 'urgent', 'action required', 'guaranteed', '100% free',
+                'click here', 'unsubscribe', 'risk-free', 'limited time', 'special promotion', 'order now', '$$$', 'credit card',
+                'password', 'verify your account', 'account suspended', 'invoice', 'inheritance', 'viagra', 'pharmacy'
+            ];
+            
+            const linkPatterns = /(http:\/\/|https:\/\/)?(bit\.ly|tinyurl\.com|goo\.gl)/i;
+
+            function formatNumber(num) {
+                if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+                if (num >= 1000) return (num / 1000).toFixed(0) + 'K';
+                return num;
+            }
+
+            document.getElementById('total-emails').textContent = formatNumber(emailData.total);
+
+            const emailBreakdownCtx = document.getElementById('emailBreakdownChart').getContext('2d');
+            new Chart(emailBreakdownCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Legitimate (Ham)', 'Spam'],
+                    datasets: [{
+                        data: [emailData.ham, emailData.spam],
+                        backgroundColor: ['rgba(22, 163, 74, 0.7)', 'rgba(239, 68, 68, 0.7)'],
+                        borderColor: ['rgba(22, 163, 74, 1)', 'rgba(239, 68, 68, 1)'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        title: { display: true, text: 'Email Classification Breakdown' }
+                    }
+                }
+            });
+
+            const accuracyByTypeCtx = document.getElementById('accuracyByTypeChart').getContext('2d');
+            new Chart(accuracyByTypeCtx, {
+                type: 'bar',
+                data: accuracyData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 95,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Accuracy (%)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: 'Detection Accuracy by Spam Type' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Accuracy: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const pipelineItems = document.querySelectorAll('.pipeline-item');
+            pipelineItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    pipelineItems.forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                    
+                    const content = pipelineContent[item.id];
+                    document.getElementById('pipeline-detail-title').textContent = content.title;
+                    document.getElementById('pipeline-detail-text').textContent = content.text;
+                });
+            });
+
+            document.getElementById('pipeline-1').click();
+
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const emailContent = document.getElementById('email-content');
+            const analysisResult = document.getElementById('analysis-result');
+            
+            analyzeBtn.addEventListener('click', () => {
+                const text = emailContent.value.toLowerCase();
+                if (!text.trim()) {
+                    analysisResult.innerHTML = `<p class="text-gray-500">Please enter some email content to analyze.</p>`;
+                    return;
+                }
+
+                let score = 0;
+                let reasons = [];
+
+                spamKeywords.forEach(keyword => {
+                    if (text.includes(keyword)) {
+                        score++;
+                        if (!reasons.find(r => r.type === 'keyword')) {
+                           reasons.push({ type: 'keyword', text: `Detected suspicious keywords (e.g., "${keyword}")` });
+                        }
+                    }
+                });
+
+                if (text.includes('!')) {
+                    const exclamationCount = (text.match(/!/g) || []).length;
+                    if (exclamationCount > 2) {
+                        score += 2;
+                        reasons.push({ text: 'Excessive use of exclamation marks.' });
+                    }
+                }
+                
+                if (text.toUpperCase() === text && text.length > 20) {
+                     score += 2;
+                     reasons.push({ text: 'Message written in all caps.' });
+                }
+
+                if (linkPatterns.test(text)) {
+                    score += 3;
+                    reasons.push({ text: 'Contains a shortened, potentially obfuscated link.' });
+                }
+
+                analysisResult.innerHTML = '';
+                analysisResult.classList.remove('result-spam', 'result-ham', 'border-dashed', 'border-gray-300');
+                
+                if (score >= 3) {
+                    analysisResult.classList.add('result-spam');
+                    analysisResult.innerHTML = `
+                        <div class="text-center">
+                            <h3 class="text-xl font-bold mb-2">Likely Spam</h3>
+                            <p class="mb-3">Our analysis suggests a high probability this email is spam. Reasons:</p>
+                            <ul class="text-sm list-disc list-inside text-left">
+                                ${reasons.map(r => `<li>${r.text}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    analysisResult.classList.add('result-ham');
+                     analysisResult.innerHTML = `
+                        <div class="text-center">
+                            <h3 class="text-xl font-bold mb-2">Likely Legitimate (Ham)</h3>
+                            <p>This email does not contain common indicators of spam. However, always exercise caution with links and attachments.</p>
+                        </div>
+                    `;
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+streamlit
+pandas
+scikit-learn==1.6.1
+nltk~=3.9.2
+beautifulsoup4~=4.14.2
+requests~=2.32.5
+joblib~=1.5.2
+python-dotenv~=1.1.1
+
+spacy~=3.8.7
+Flask~=3.1.2
+bs4~=0.0.2
+textblob~=0.19.0
