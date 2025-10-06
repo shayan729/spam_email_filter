@@ -12,7 +12,6 @@
         .stage-pending { border-color: #9ca3af; }
         .stage-passed { border-color: #22c55e; background-color: #f0fdf4; }
         .stage-failed { border-color: #ef4444; background-color: #fef2f2; }
-        .stage-skipped { border-color: #eab308; background-color: #fefce8; }
         .status-icon { font-size: 1.5rem; line-height: 1; }
         .file-input-label { cursor: pointer; border: 2px dashed #cbd5e1; padding: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.2s; }
         .file-input-label:hover { border-color: #3b82f6; background-color: #eff6ff; }
@@ -23,6 +22,7 @@
         #vt-modal { transition: opacity 0.3s ease-in-out; }
         #vt-modal-content-box { transition: transform 0.3s ease-in-out; }
         .pipeline-item.active { border-color: #3b82f6; background-color: #eff6ff; font-weight: 600; }
+        .score-text { font-family: monospace; font-size: 0.8rem; color: #4b5563; }
     </style>
 </head>
 <body class="antialiased text-gray-800">
@@ -34,10 +34,9 @@
         </header>
 
         <main class="space-y-8">
-            <!-- Informational Section -->
             <section class="bg-white p-6 md:p-8 rounded-xl shadow-sm">
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">The Filtering Pipeline</h2>
-                <p class="text-gray-600 mb-8">Our system uses a multi-stage process to analyze each email. Click any stage to learn more.</p>
+                <p class="text-gray-600 mb-8">The system uses a multi-stage process to analyze each email. Click any stage to learn more.</p>
                 <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 md:space-x-4 text-center mb-8">
                     <div id="pipeline-1" class="pipeline-item cursor-pointer p-4 border-2 rounded-lg flex-1 w-full"><h3>1. Header Analysis</h3></div>
                     <div class="pipeline-arrow text-2xl font-light transform md:rotate-0 rotate-90">&rarr;</div>
@@ -53,7 +52,6 @@
                 </div>
             </section>
 
-            <!-- Analyzer Section -->
             <section class="bg-white p-6 md:p-8 rounded-xl shadow-sm">
                 <h2 class="text-2xl font-bold text-gray-800 mb-6">Live Analyzer</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
@@ -75,7 +73,6 @@
                 <div class="mt-6 border-t pt-6"><button id="analyze-btn" class="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 disabled:bg-gray-400">Analyze</button></div>
             </section>
 
-            <!-- Results Section -->
             <section id="results-container" class="bg-white p-6 md:p-8 rounded-xl shadow-sm hidden">
                 <h2 class="text-2xl font-bold mb-6">Analysis Results</h2>
                 <div id="verdict-banner"></div>
@@ -88,7 +85,6 @@
         </main>
     </div>
 
-    <!-- VirusTotal Scan Result Modal -->
     <div id="vt-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0">
         <div id="vt-modal-content-box" class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 transform scale-95">
             <div class="flex justify-between items-center mb-4">
@@ -112,13 +108,26 @@
 
         let originalFileObject = null;
 
-        // --- Static Pipeline Info Logic ---
+        // --- UPDATED: Accurate pipeline content ---
         const pipelineContent = {
-            'pipeline-1': { title: 'Stage 1: Header Analysis', text: 'Scrutinizes sender reputation, authentication records (SPF, DKIM), and routing information to detect forged identities.' },
-            'pipeline-2': { title: 'Stage 2: Content Analysis', text: 'Scans the email body for spam keywords, suspicious phrases, and formatting tricks using Natural Language Processing (NLP).' },
-            'pipeline-3': { title: 'Stage 3: Link & Attachment Scan', text: 'Checks all embedded links against a database of malicious URLs and scans attachments for malware and dangerous file types.' },
-            'pipeline-4': { title: 'Stage 4: Machine Learning Model', text: 'Feeds all collected data into an SVM model, which calculates a final spam score based on thousands of features to make a final classification.' }
+            'pipeline-1': {
+                title: 'Stage 1: Header Analysis',
+                text: 'Checks the email\'s subject line for high-risk keywords (e.g., \'free\', \'urgent\', \'winner\'). This provides a fast, initial check for common, low-effort spam.'
+            },
+            'pipeline-2': {
+                title: 'Stage 2: Content Analysis (NLP)',
+                text: 'Utilizes Natural Language Processing to understand intent. It performs Sentiment Analysis to detect emotional manipulation (extreme positivity/negativity) and calculates an Urgency Score to identify pressure tactics.'
+            },
+            'pipeline-3': {
+                title: 'Stage 3: Link & Attachment Scan (with VirusTotal)',
+                text: 'Identifies suspicious patterns like URL shorteners (bit.ly) and high-risk file types (.exe, .zip). All extracted items can then be submitted by the user for an in-depth VirusTotal Scan directly from the results panel.'
+            },
+            'pipeline-4': {
+                title: 'Stage 4: Machine Learning Model',
+                text: 'All textual data is vectorized and fed into a trained Support Vector Machine (SVM) model. This model analyzes thousands of features to make a final, context-aware classification of HAM or SPAM.'
+            }
         };
+
         const pipelineItems = document.querySelectorAll('.pipeline-item');
         pipelineItems.forEach(item => {
             item.addEventListener('click', () => {
@@ -129,9 +138,8 @@
                 document.getElementById('pipeline-detail-text').textContent = content.text;
             });
         });
-        document.getElementById('pipeline-1').click(); // Set initial state
+        document.getElementById('pipeline-1').click();
 
-        // --- Event Listeners & Modal Controls ---
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
                 originalFileObject = fileInput.files[0];
@@ -145,17 +153,15 @@
         vtModalCloseBtn.addEventListener('click', closeModal);
         vtModal.addEventListener('click', (e) => { if(e.target === vtModal) closeModal(); });
 
-        // --- UI Update & Analysis Functions ---
         const updateUI = (data) => {
             verdictBanner.innerHTML = data.verdict === 'spam' ? `<div class="p-4 rounded-lg text-center text-white font-bold text-xl bg-red-500">Verdict: SPAM</div>` : `<div class="p-4 rounded-lg text-center text-white font-bold text-xl bg-green-500">Verdict: HAM</div>`;
             pipelineStages.innerHTML = data.stages.map(s => {
-                const icons = {'passed': '✅', 'failed': '🛑', 'skipped': '⏩'};
-                return `<div class="stage-card p-4 rounded-lg flex items-center space-x-4 stage-${s.status}"><div class="status-icon">${icons[s.status]}</div><div><h3 class="font-bold text-lg">${s.stage} Analysis</h3><p class="text-gray-600">${s.reason}</p></div></div>`;
+                const icons = {'passed': '✅', 'failed': '🛑'};
+                const scoreHtml = s.status === 'passed' && s.score ? `<p class="mt-1 score-text">Score: ${s.score}</p>` : '';
+                return `<div class="stage-card p-4 rounded-lg flex items-start space-x-4 stage-${s.status}"><div class="status-icon">${icons[s.status]}</div><div><h3 class="font-bold text-lg">${s.stage} Analysis</h3><p class="text-gray-600">${s.reason}</p>${scoreHtml}</div></div>`;
             }).join('');
-            
             linksSection.classList.toggle('hidden', !data.links?.length);
             linksList.innerHTML = (data.links || []).map(link => `<li class="extracted-item flex items-center justify-between bg-gray-50 p-2 rounded-md"><span>${link}</span><button class="vt-scan-btn" data-url="${link}">Scan</button></li>`).join('');
-
             attachmentsSection.classList.toggle('hidden', !data.attachments?.length);
             attachmentsList.innerHTML = (data.attachments || []).map(attachment => {
                 const btn = originalFileObject ? `<button class="vt-scan-btn" data-filename="${attachment}">Scan</button>` : `<span class="text-xs text-gray-400">Scan N/A</span>`;
@@ -168,12 +174,10 @@
             if (!text.trim() && !file) return alert('Please provide input.');
             analyzeBtn.disabled = true; analyzeBtn.textContent = 'Analyzing...';
             resultsContainer.classList.remove('hidden');
-            
             const endpoint = file ? '/analyze_file' : '/analyze_text';
             let body, headers = {};
             if (file) { const fd = new FormData(); fd.append('eml_file', file); body = fd; }
             else { body = JSON.stringify({ email_text: text }); headers = { 'Content-Type': 'application/json' }; }
-            
             try {
                 const res = await fetch(endpoint, { method: 'POST', headers, body });
                 const data = await res.json();
@@ -185,21 +189,14 @@
                 analyzeBtn.disabled = false; analyzeBtn.textContent = 'Analyze';
             }
         });
-        
+
         const displayVTResults = (data, itemIdentifier) => {
             const stats = data.data?.attributes?.stats || {};
             const isFileScan = !!data.meta?.file_info;
             const sha256 = isFileScan ? data.meta.file_info.sha256 : null;
             let reportUrl = '#';
-
-            if (isFileScan) {
-                reportUrl = `https://www.virustotal.com/gui/file/${sha256}`;
-            } else if (data.data?.links?.item) {
-                // --- THIS IS THE FIX ---
-                const urlId = data.data.links.item.split('/').pop();
-                reportUrl = `https://www.virustotal.com/gui/url/${urlId}`;
-            }
-
+            if (isFileScan) { reportUrl = `https://www.virustotal.com/gui/file/${sha256}`; }
+            else if (data.data?.links?.item) { const urlId = data.data.links.item.split('/').pop(); reportUrl = `https://www.virustotal.com/gui/url/${urlId}`; }
             vtModalContent.innerHTML = `
                 <p class="mb-2"><strong>Item:</strong> <span class="font-mono text-xs">${itemIdentifier.slice(0, 47)}...</span></p>
                 ${isFileScan ? `<p class="mb-2"><strong>SHA256:</strong> <span class="font-mono text-xs">${sha256}</span></p>` : ''}
@@ -211,23 +208,19 @@
                 </div>
                 <a href="${reportUrl}" target="_blank" class="block text-center mt-4 text-blue-600 hover:underline">View Full Report</a>`;
         };
-        
         const pollForResult = async (analysisId, itemIdentifier, retries = 10) => {
             if (retries <= 0) { vtModalContent.innerHTML = `<p class="text-red-600 font-bold">Error: Scan timed out.</p>`; return; }
             try {
                 const res = await fetch(`/get_vt_report/${analysisId}`);
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed to get report.');
-                
-                if (data.data.attributes.status === 'completed') {
-                    displayVTResults(data, itemIdentifier);
-                } else {
+                if (data.data.attributes.status === 'completed') { displayVTResults(data, itemIdentifier); }
+                else {
                     vtModalContent.innerHTML = `<p class="text-center">Scan status: <strong>${data.data.attributes.status}</strong>. Checking again in 4 seconds...</p>`;
                     setTimeout(() => pollForResult(analysisId, itemIdentifier, retries - 1), 4000);
                 }
             } catch(error) { vtModalContent.innerHTML = `<p class="text-red-600 font-bold">Error: ${error.message}</p>`; }
         };
-
         resultsContainer.addEventListener('click', async (e) => {
             if (!e.target.classList.contains('vt-scan-btn')) return;
             const btn = e.target;
@@ -235,29 +228,22 @@
             openModal();
             vtModalContent.innerHTML = '<p class="text-center">Submitting to VirusTotal...</p>';
             let analysisId, itemIdentifier;
-
             try {
                 let res, data;
-                if (btn.dataset.url) { // URL Scan
+                if (btn.dataset.url) {
                     itemIdentifier = btn.dataset.url;
                     res = await fetch('/scan_url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: itemIdentifier }) });
-                } else if (btn.dataset.filename && originalFileObject) { // File Scan
+                } else if (btn.dataset.filename && originalFileObject) {
                     itemIdentifier = btn.dataset.filename;
-                    const fd = new FormData();
-                    fd.append('file', originalFileObject);
+                    const fd = new FormData(); fd.append('file', originalFileObject);
                     res = await fetch('/scan_attachment', { method: 'POST', body: fd });
                 }
-                
                 if (!res) throw new Error("Invalid scan type.");
                 data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Submission failed.');
-                
                 analysisId = data.data.id;
-                if (analysisId) {
-                    await pollForResult(analysisId, itemIdentifier);
-                } else {
-                    throw new Error("Could not get a valid analysis ID.");
-                }
+                if (analysisId) { await pollForResult(analysisId, itemIdentifier); }
+                else { throw new Error("Could not get a valid analysis ID."); }
             } catch (error) {
                 vtModalContent.innerHTML = `<p class="text-red-600 font-bold">Error: ${error.message}</p>`;
             } finally {
