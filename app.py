@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 import nltk
 import requests
 from dotenv import load_dotenv
-
+import subprocess
 # --- NEW: Import NLP libraries ---
 from textblob import TextBlob
 import spacy
@@ -28,14 +28,15 @@ try:
     svm_model = joblib.load('svm_spam_model.joblib')
     tfidf_vectorizer = joblib.load('tfidf_vectorizer.joblib')
     print("✅ Model and vectorizer loaded successfully.")
-    
-    # --- NEW: Load spaCy model ---
-    nlp = spacy.load("en_core_web_sm")
-    print("✅ spaCy NLP model loaded successfully.")
 
 except (FileNotFoundError, IOError) as e:
     print(f"❌ Critical startup error: {e}. Please ensure model files and spaCy model are present.")
     exit()
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
+    nlp = spacy.load("en_core_web_sm")
 
 try:
     nltk.data.find('corpora/stopwords')
