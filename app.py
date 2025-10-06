@@ -27,16 +27,11 @@ try:
     svm_model = joblib.load('svm_spam_model.joblib')
     tfidf_vectorizer = joblib.load('tfidf_vectorizer.joblib')
     print("✅ Model and vectorizer loaded successfully.")
-    nlp = spacy.load("en_core_web_sm")
-    print("✅ spaCy NLP model loaded successfully.")
+    #nlp = spacy.load("en_core_web_sm")
+    #print("✅ spaCy NLP model loaded successfully.")
 except (FileNotFoundError, IOError) as e:
-    print(f"❌ Critical startup error: {e}. Attempting to download spaCy model...")
-    try:
-        subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
-        nlp = spacy.load("en_core_web_sm")
-    except Exception as download_e:
-        print(f"❌ Failed to download spaCy model: {download_e}")
-        exit()
+    print(f"❌ Critical startup error: {e}. ")
+    
 
 try:
     nltk.data.find('corpora/stopwords');
