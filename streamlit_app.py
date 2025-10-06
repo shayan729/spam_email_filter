@@ -16,7 +16,7 @@ import spacy
 
 # --- Page Configuration (Run only once) ---
 st.set_page_config(
-    page_title="Spam Email Analyzer",
+    page_title="Spam Email Filter",
     page_icon="🛡️",
     layout="wide"
 )
@@ -24,34 +24,25 @@ st.set_page_config(
 # --- Resource Loading (Cached for performance) ---
 @st.cache_resource
 def load_resources():
-    """Loads all models and downloads necessary data only once."""
-    # Define NLTK data path for Streamlit sharing compatibility
-    nltk_data_path = os.path.join(os.path.expanduser("~"), "nltk_data")
-    if not os.path.exists(nltk_data_path):
-        os.mkdir(nltk_data_path)
-    nltk.data.path.append(nltk_data_path)
-
-    # Download NLTK packages if missing
-    try: nltk.data.find('corpora/stopwords')
-    except LookupError: nltk.download('stopwords', download_dir=nltk_data_path)
-    try: nltk.data.find('corpora/wordnet')
-    except LookupError: nltk.download('wordnet', download_dir=nltk_data_path)
-
-    # Load spaCy model
+    """Loads all models and data, assuming they are pre-installed via requirements.txt."""
+    # NLTK data handling
     try:
-        nlp_model = spacy.load("en_core_web_sm")
-    except IOError:
-        st.info("spaCy model not found. Downloading...")
-        spacy.cli.download("en_core_web_sm")
-        nlp_model = spacy.load("en_core_web_sm")
+        nltk.data.find('corpora/stopwords')
+        nltk.data.find('corpora/wordnet')
+    except LookupError:
+        st.info("NLTK data not found. Downloading...")
+        nltk.download('stopwords')
+        nltk.download('wordnet')
 
-    # Load your ML model and vectorizer
+    # Load models
     try:
         svm_model = joblib.load('svm_spam_model.joblib')
         tfidf_vectorizer = joblib.load('tfidf_vectorizer.joblib')
+        # spaCy model is now guaranteed to be installed by requirements.txt
+        nlp_model = spacy.load("en_core_web_sm")
         return svm_model, tfidf_vectorizer, nlp_model
-    except FileNotFoundError:
-        st.error("Model or vectorizer files not found. Please ensure they are in the app's root directory.")
+    except (FileNotFoundError, IOError) as e:
+        st.error(f"A critical resource is missing: {e}. Please ensure all model files are in the GitHub repository.")
         return None, None, None
 
 svm_model, tfidf_vectorizer, nlp = load_resources()
