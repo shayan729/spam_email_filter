@@ -12,7 +12,7 @@ import requests
 from dotenv import load_dotenv
 import subprocess
 from textblob import TextBlob
-import spacy
+
 
 load_dotenv()
 VT_API_KEY = os.getenv("VT_API_KEY")
